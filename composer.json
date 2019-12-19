@@ -1,0 +1,22 @@
+{
+    "name": "crodas/observant",
+    "description": "A magic memoization function on steroids",
+    "authors": [
+        {
+            "name": "Cesar Rodas",
+            "email": "crodas@php.net"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Observant\\": "src/Observant"
+        },
+        "files": [
+            "src/Observant.php"
+        ]
+    },
+    "require": {
+        "php": ">=7.0"
+    }
+}
