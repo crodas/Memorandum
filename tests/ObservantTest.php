@@ -140,8 +140,8 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         $f = function() {};
 
         $this->assertEquals(
-            spl_object_id(observant($f)),
-            spl_object_id(observant($f))
+            spl_object_hash(observant($f)),
+            spl_object_hash(observant($f))
         );
     }
 
@@ -153,8 +153,8 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         $c2 = new \Observant\Cache\File(__DIR__ . '/tmp/xxx');
 
         $this->assertNotEquals(
-            spl_object_id(observant($f, $c1)),
-            spl_object_id(observant($f, $c2))
+            spl_object_hash(observant($f, $c1)),
+            spl_object_hash(observant($f, $c2))
         );
     }
 }
