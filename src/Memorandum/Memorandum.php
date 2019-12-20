@@ -265,13 +265,18 @@ class Memorandum
         return $this->name;
     }
 
+    /**
+     * Calls the underlying function or return the cached output.
+     *
+     * @param mixed ...$args
+     * @return mixed|string
+     */
     public function __invoke(... $args)
     {
-        $cache    = $this->cache ?: self::$globalCache;
+        $storage  = $this->cache ?: self::$globalCache;
+        $cacheKey = $storage->key($this, $args);
 
-        $cacheKey = $cache->key($this, $args);
-
-        if ($return = $cache->get($cacheKey)) {
+        if ($return = $storage->get($cacheKey)) {
             return unserialize($return);
         }
 
@@ -282,13 +287,17 @@ class Memorandum
         $return  = $function(...$args);
         $files = array_pop($this->files);
 
-        $cache->persist($cacheKey, $files, serialize($return));
+        $storage->persist($cacheKey, $files, serialize($return));
 
         return $return;
 
     }
 
     /**
+     * Creates a new Memorandum instance.
+     *
+     * The instances are unique per function and cache layer.
+     *
      * @param callable $function
      * @param Base|null $cache
      * @return Memorandum
