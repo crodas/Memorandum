@@ -45,17 +45,11 @@ class Memory extends Base
 
     public function get(string $key): string
     {
-        if (!isset($this->data[$key])) {
-            return '';
+        if (isset($this->data[$key]) && $this->isCacheValid($this->data[$key]['files'])) {
+            return $this->data[$key]['content'];
         }
 
-        foreach ($this->data[$key]['files'] as $file => $time) {
-            if (!is_file($file) && !is_dir($file) || $time < filemtime($file)) {
-                return '';
-            }
-        }
-
-        return $this->data[$key]['content'];
+        return '';
     }
 
     public function persist(string $key, array $files, string $content): bool

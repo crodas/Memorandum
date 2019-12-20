@@ -37,58 +37,60 @@
 namespace Observant\Cache;
 
 
-use Observant\Observant;
+use RuntimeException;
 
-abstract class Base
+class File extends Base
 {
-    /**
-     * Returns a unique key based on the function name and the arguments.
-     *
-     * @param Observant $class
-     * @param array $args
-     * @return string
-     */
-    public function key(Observant $class, array $args): string
-    {
-        return sha1($class->getName() . ':' . serialize($args));
-    }
+    protected $directory;
 
-    /**
-     * Return true if the current cache is still valid.
-     *
-     * @param array $files
-     * @return bool
-     */
-    public function isCacheValid(array $files): bool
+    protected $cache = [];
+
+    public function __construct($directory)
     {
-        foreach ($files as $file => $time) {
-            if (!is_file($file) && !is_dir($file) || $time < filemtime($file)) {
-                return false;
+        if (!is_dir($directory)) {
+            if (!mkdir($directory, 0777, true)) {
+                throw new RuntimeException("Cannot create a directory $directory");
             }
         }
 
-        return true;
+        $this->directory = $directory;
     }
 
-    /**
-     * Returns the cache content by a key.
-     *
-     * If the cache is not found or it is not longer valid, and empty string
-     * is expected.
-     *
-     * @param string $key
-     * @return string
-     */
-    abstract public function get(string $key): string;
+    protected function getCachePath(string $key): string
+    {
+        return $this->directory . '/' . $key . 'php';
+    }
 
-    /**
-     * Persists a new cache storing the content and the list of files (and their modified time).
-     *
-     * @param string $key
-     * @param array $files
-     * @param string $content
-     *
-     * @return bool
-     */
-    abstract public function persist(string $key, array $files, string $content): bool;
+    public function get(string $key): string
+    {
+        $file  = $this->getCachePath($key);
+        $cache = null;
+
+        if (isset($this->cache[$key])) {
+            $cache = $this->cache[$key];
+        } else if (is_file($file)) {
+            $cache = require $file;
+
+            $this->cache[$key] = $cache;
+        }
+
+        if ($cache && $this->isCacheValid($cache['files'])) {
+            return $cache['content'];
+        }
+
+        return '';
+    }
+
+    public function persist(string $key, array $files, string $content): bool
+    {
+        $this->cache[$key] = compact('files', 'content');
+
+        $code = var_export(compact('files', 'content'), true);
+        $temp = tempnam(sys_get_temp_dir(), 'observant');
+        file_put_contents($temp, "<?php return " . $code . ";");
+
+        rename($temp, $this->getCachePath($key));
+
+        return true;
+    }
 }

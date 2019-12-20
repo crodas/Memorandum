@@ -40,11 +40,13 @@ use Observant\Cache\Base;
 use Observant\Cache\Memory;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionClass;
 use ReflectionFunction;
 use RuntimeException;
 use ReflectionObject;
 use SplFileInfo;
 use Closure;
+use Throwable;
 
 class Observant
 {
@@ -61,19 +63,28 @@ class Observant
     /**
      * @var Base
      */
-    protected static $cache;
+    protected static $globalCache;
+
+    /**
+     * @var Base
+     */
+    protected $cache;
 
     /**
      * @var array
      */
     protected $files = [];
 
-    public function __construct(callable $function)
+    public function __construct(callable $function, Base $cache = null)
     {
         $this->function = $function;
         $this->name     = $this->parseFunctionName($function);
 
-        if (! self::$cache) {
+        if ($cache) {
+            $this->cache = $cache;
+        }
+
+        if (! self::$globalCache) {
             self::setCache(new Memory());
         }
     }
@@ -85,7 +96,7 @@ class Observant
      */
     public static function setCache(Base $cache)
     {
-        self::$cache = $cache;
+        self::$globalCache = $cache;
     }
 
     /**
@@ -100,21 +111,34 @@ class Observant
      */
     protected function parseFunctionName(callable $function): string
     {
-        if (is_object($function)) {
-            $reflection = new ReflectionObject($function);
-        } else {
-            $reflection = new ReflectionFunction($function);
-        }
-
         if ($function instanceof Closure) {
-            $this->function = $function->bindTo($this);
+            try {
+                // Attempt to bind the closure's this to this observant object.
+                $this->function = $function->bindTo($this);
+            } catch(Throwable $e) {
+            }
+
+            $reflection = new ReflectionFunction($function);
 
             return sha1(
                 $reflection->getFileName()
                 . ':'. $reflection->getStartLine()
                 . '-' . $reflection->getEndLine()
             );
+        } else if (is_array($function) || is_string($function) && strpos($function, '::') > 0) {
+            // No further checks are needed, because PHP is awesome and 'Callable'
+            // already makes sure the callback is valid.
+            list($class, $method) = is_array($function) ? $function : explode("::", $function, 2);
+
+            $reflection = (new ReflectionClass($class))->getMethod($method);
+
+            return $reflection->getDeclaringClass()->getName()
+                . '::' . $reflection->getName();
         }
+
+        $reflection = is_object($function)
+            ? new ReflectionObject($function)
+            : new ReflectionFunction($function);
 
         return $reflection->getName();
     }
@@ -136,25 +160,7 @@ class Observant
     {
         $files = [];
         foreach ($args as $arg) {
-            if (!is_file($arg) && !is_dir($arg)) {
-                continue;
-            }
-
-            $file = new SplFileInfo($arg);
-            $files[] = $file->getRealPath();
-
-            if ($file->isDir()) {
-                $iterator = new RecursiveDirectoryIterator(
-                    $file->getPathname(),
-                    RecursiveDirectoryIterator::SKIP_DOTS
-                );
-                $iterator = new RecursiveIteratorIterator($iterator);
-
-                foreach ($iterator as $file) {
-                    $files[] = dirname($file->getRealPath());
-                    $files[] = $file->getRealPath();
-                }
-            }
+            $files = array_merge($files, $this->getAllFiles($arg));
         }
 
         $files = array_unique($files);
@@ -171,20 +177,85 @@ class Observant
     }
 
     /**
+     * Returns an array of files.
+     *
+     * This function would return an array of files based on the input. If the input is an directory,
+     * every file inside would be included.
+     *
+     * @param $file
+     * @return array
+     */
+    protected function getAllFiles($file): array
+    {
+        if (!is_file($file) && !is_dir($file)) {
+            return [];
+        }
+
+        $file = new SplFileInfo($file);
+        $files = [$file->getRealPath()];
+
+        if ($file->isDir()) {
+            $iterator = new RecursiveDirectoryIterator(
+                $file->getPathname(),
+                RecursiveDirectoryIterator::SKIP_DOTS
+            );
+            $iterator = new RecursiveIteratorIterator($iterator);
+
+            foreach ($iterator as $file) {
+                $files[] = dirname($file->getRealPath());
+                $files[] = $file->getRealPath();
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * Makes sure the current call comes within the __invoke() context.
+     *
+     * @throws RuntimeException
+     */
+    protected function isWithinInvokeContext()
+    {
+        if (empty($this->files)) {
+            throw new RuntimeException('Invalid calls to getFiles');
+        }
+    }
+
+    /**
      * Returns a list of files associated with the current function call.
      *
      * This is only accessible while a function is being called (through __invoke).
      *
      * A list of files found in the arguments from the current function is returned.
      *
-     * @return mixed
+     * @return array
      */
-    public function getFiles()
+    public function getFiles(): array
     {
-        if (empty($this->files)) {
-            throw new RuntimeException('Invalid calls to getFiles');
+        $this->isWithinInvokeContext();
+        return array_keys(end($this->files));
+    }
+
+    /**
+     * Binds a file to the current cache.
+     *
+     * The 'gist' of Observant is that the cache is bound to files that may exists in the argument.
+     *
+     * The cache is treated as valid as long as none of the watched files changes.
+     *
+     * This function allow to watch any extra file that is not defined in the argument.
+     *
+     * @param $file
+     */
+    public function watchFile($file)
+    {
+        $this->isWithinInvokeContext();
+
+        $id = count($this->files) - 1;
+        foreach ($this->getAllFiles($file) as $file) {
+            $this->files[$id][$file] = filemtime($file);
         }
-        return end($this->files);
     }
 
     /**
@@ -199,20 +270,22 @@ class Observant
 
     public function __invoke(... $args)
     {
-        $cacheKey = self::$cache->key($this, $args);
+        $cache    = $this->cache ?: self::$globalCache;
 
-        if ($return = self::$cache->get($cacheKey)) {
+        $cacheKey = $cache->key($this, $args);
+
+        if ($return = $cache->get($cacheKey)) {
             return unserialize($return);
         }
 
         $function = $this->function;
         $files    = $this->getFilesFromArgs($args);
 
-        $this->files[] = array_keys($files);
+        $this->files[] = $files;
         $return  = $function(...$args);
-        array_pop($this->files);
+        $files = array_pop($this->files);
 
-        self::$cache->persist($cacheKey, $files, serialize($return));
+        $cache->persist($cacheKey, $files, serialize($return));
 
         return $return;
     }

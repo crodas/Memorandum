@@ -27,7 +27,6 @@
 
     <filter>
         <whitelist>
-            <directory>tests/</directory>
             <directory>src/</directory>
         </whitelist>
     </filter>
