@@ -34,18 +34,61 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-use Observant\Observant;
+namespace Memorandum\Cache;
 
-function observant(callable $function, \Observant\Cache\Base $cache = null): callable
+
+use Memorandum\Memorandum;
+
+abstract class Base
 {
-    static $instances = [];
-
-    $id = is_object($function) ? spl_object_hash($function) : serialize($function);
-    $id .= ':' . ($cache ? spl_object_hash($cache) : 'default');
-
-    if (!isset($instances[$id])) {
-        $instances[$id] = new Observant($function, $cache);
+    /**
+     * Returns a unique key based on the function name and the arguments.
+     *
+     * @param Memorandum $class
+     * @param array $args
+     * @return string
+     */
+    public function key(Memorandum $class, array $args): string
+    {
+        return sha1($class->getName() . ':' . serialize($args));
     }
 
-    return $instances[$id];
+    /**
+     * Return true if the current cache is still valid.
+     *
+     * @param array $files
+     * @return bool
+     */
+    public function isCacheValid(array $files): bool
+    {
+        foreach ($files as $file => $time) {
+            if (!is_file($file) && !is_dir($file) || $time < filemtime($file)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Returns the cache content by a key.
+     *
+     * If the cache is not found or it is not longer valid, and empty string
+     * is expected.
+     *
+     * @param string $key
+     * @return string
+     */
+    abstract public function get(string $key): string;
+
+    /**
+     * Persists a new cache storing the content and the list of files (and their modified time).
+     *
+     * @param string $key
+     * @param array $files
+     * @param string $content
+     *
+     * @return bool
+     */
+    abstract public function persist(string $key, array $files, string $content): bool;
 }

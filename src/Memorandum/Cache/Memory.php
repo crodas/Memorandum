@@ -34,10 +34,7 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Observant\Cache;
-
-
-use Observant\Observant;
+namespace Memorandum\Cache;
 
 class Memory extends Base
 {

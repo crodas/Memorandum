@@ -1,6 +1,6 @@
 <?php
 
-class ObservantTest extends PHPUnit\Framework\TestCase
+class MemorandumTest extends PHPUnit\Framework\TestCase
 {
     public static function getCallback()
     {
@@ -43,7 +43,7 @@ class ObservantTest extends PHPUnit\Framework\TestCase
      */
     public function testMemoization($function)
     {
-        $function = observant($function);
+        $function = memo($function);
         $expected = $function();
 
         for($i=0; $i < 1000; ++$i) {
@@ -56,7 +56,7 @@ class ObservantTest extends PHPUnit\Framework\TestCase
      */
     public function testMemoizationWithArgs($function, $i)
     {
-        $function = observant($function);
+        $function = memo($function);
         $expected = $function($i);
         for ($e = 0; $e < 100; ++$e) {
             $this->assertEquals($expected, $function($i));
@@ -66,7 +66,7 @@ class ObservantTest extends PHPUnit\Framework\TestCase
     public function testMemoizationWithArgsAndFiles()
     {
         $self = $this;
-        $function = observant(function($p) use($self) {
+        $function = memo(function($p) use($self) {
             $self->assertTrue(is_array($this->getFiles()));
             return $p . ':' . random_int(1, 0xfffffff);
         });
@@ -93,7 +93,7 @@ class ObservantTest extends PHPUnit\Framework\TestCase
      */
     public function testInvalidCallsToGetFiles()
     {
-        $x = new \Observant\Observant(function() {});
+        $x = \Memorandum\Memorandum::init(function() {});
         $x->getFiles();
     }
 
@@ -108,8 +108,8 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         };
 
         return [
-            [observant($function, new \Observant\Cache\File(__DIR__ . '/tmp/')), $file, time() + 10],
-            [observant($function, new \Observant\Cache\File(__DIR__ . '/tmp/')), $file, time() + 20],
+            [memo($function, new \Memorandum\Cache\File(__DIR__ . '/tmp/')), $file, time() + 10],
+            [memo($function, new \Memorandum\Cache\File(__DIR__ . '/tmp/')), $file, time() + 20],
         ];
     }
 
@@ -142,8 +142,8 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         $f = function() {};
 
         $this->assertEquals(
-            spl_object_hash(observant($f)),
-            spl_object_hash(observant($f))
+            spl_object_hash(memo($f)),
+            spl_object_hash(memo($f))
         );
     }
 
@@ -151,12 +151,12 @@ class ObservantTest extends PHPUnit\Framework\TestCase
     {
         $f = function() {};
 
-        $c1 = new \Observant\Cache\File(__DIR__ . '/tmp/xxx');
-        $c2 = new \Observant\Cache\File(__DIR__ . '/tmp/xxx');
+        $c1 = new \Memorandum\Cache\File(__DIR__ . '/tmp/xxx');
+        $c2 = new \Memorandum\Cache\File(__DIR__ . '/tmp/xxx');
 
         $this->assertNotEquals(
-            spl_object_hash(observant($f, $c1)),
-            spl_object_hash(observant($f, $c2))
+            spl_object_hash(memo($f, $c1)),
+            spl_object_hash(memo($f, $c2))
         );
     }
 }

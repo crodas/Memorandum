@@ -34,61 +34,18 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Observant\Cache;
+use Memorandum\Memorandum;
 
-
-use Observant\Observant;
-
-abstract class Base
-{
-    /**
-     * Returns a unique key based on the function name and the arguments.
-     *
-     * @param Observant $class
-     * @param array $args
-     * @return string
-     */
-    public function key(Observant $class, array $args): string
+if (!is_callable('memo')) {
+    function memo(callable $function, \Memorandum\Cache\Base $cache = null): Memorandum
     {
-        return sha1($class->getName() . ':' . serialize($args));
+        return Memorandum::init($function, $cache);
     }
+}
 
-    /**
-     * Return true if the current cache is still valid.
-     *
-     * @param array $files
-     * @return bool
-     */
-    public function isCacheValid(array $files): bool
+if (!is_callable('memorandum')) {
+    function memorandum(callable $function, \Memorandum\Cache\Base $cache = null): Memorandum
     {
-        foreach ($files as $file => $time) {
-            if (!is_file($file) && !is_dir($file) || $time < filemtime($file)) {
-                return false;
-            }
-        }
-
-        return true;
+        return Memorandum::init($function, $cache);
     }
-
-    /**
-     * Returns the cache content by a key.
-     *
-     * If the cache is not found or it is not longer valid, and empty string
-     * is expected.
-     *
-     * @param string $key
-     * @return string
-     */
-    abstract public function get(string $key): string;
-
-    /**
-     * Persists a new cache storing the content and the list of files (and their modified time).
-     *
-     * @param string $key
-     * @param array $files
-     * @param string $content
-     *
-     * @return bool
-     */
-    abstract public function persist(string $key, array $files, string $content): bool;
 }

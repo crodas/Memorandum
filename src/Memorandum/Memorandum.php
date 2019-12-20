@@ -34,10 +34,10 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Observant;
+namespace Memorandum;
 
-use Observant\Cache\Base;
-use Observant\Cache\Memory;
+use Memorandum\Cache\Base;
+use Memorandum\Cache\Memory;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -48,7 +48,7 @@ use SplFileInfo;
 use Closure;
 use Throwable;
 
-class Observant
+class Memorandum
 {
     /**
      * @var callable
@@ -75,7 +75,7 @@ class Observant
      */
     protected $files = [];
 
-    public function __construct(callable $function, Base $cache = null)
+    private function __construct(callable $function, Base $cache = null)
     {
         $this->function = $function;
         $this->name     = $this->parseFunctionName($function);
@@ -110,7 +110,7 @@ class Observant
     {
         if ($function instanceof Closure) {
             try {
-                // Attempt to bind the closure's this to this observant object.
+                // Attempt to bind the closure's this to this Memorandum object.
                 $this->function = $function->bindTo($this);
             } catch(Throwable $e) {
             }
@@ -237,7 +237,7 @@ class Observant
     /**
      * Binds a file to the current cache.
      *
-     * The 'gist' of Observant is that the cache is bound to files that may exists in the argument.
+     * The 'gist' of Memorandum is that the cache is bound to files that may exists in the argument.
      *
      * The cache is treated as valid as long as none of the watched files changes.
      *
@@ -285,5 +285,25 @@ class Observant
         $cache->persist($cacheKey, $files, serialize($return));
 
         return $return;
+
+    }
+
+    /**
+     * @param callable $function
+     * @param Base|null $cache
+     * @return Memorandum
+     */
+    public static function init(Callable $function, Base $cache = null): Memorandum
+    {
+        static $instances = [];
+
+        $id = is_object($function) ? spl_object_hash($function) : serialize($function);
+        $id .= ':' . ($cache ? spl_object_hash($cache) : 'default');
+
+        if (!isset($instances[$id])) {
+            $instances[$id] = new Memorandum($function, $cache);
+        }
+
+        return $instances[$id];
     }
 }

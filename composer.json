@@ -1,5 +1,5 @@
 {
-    "name": "crodas/observant",
+    "name": "crodas/memorandum",
     "description": "A magic memoization function on steroids",
     "authors": [
         {
@@ -10,10 +10,10 @@
     "minimum-stability": "stable",
     "autoload": {
         "psr-4": {
-            "Observant\\": "src/Observant"
+            "Memorandum\\": "src/Memorandum"
         },
         "files": [
-            "src/Observant.php"
+            "src/Memorandum.php"
         ]
     },
     "require": {

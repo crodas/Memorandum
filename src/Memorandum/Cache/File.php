@@ -34,7 +34,7 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Observant\Cache;
+namespace Memorandum\Cache;
 
 
 use RuntimeException;
@@ -86,7 +86,7 @@ class File extends Base
         $this->cache[$key] = compact('files', 'content');
 
         $code = var_export(compact('files', 'content'), true);
-        $temp = tempnam(sys_get_temp_dir(), 'observant');
+        $temp = tempnam(sys_get_temp_dir(), 'memo');
         file_put_contents($temp, "<?php return " . $code . ";");
 
         rename($temp, $this->getCachePath($key));
