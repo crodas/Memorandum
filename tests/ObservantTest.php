@@ -78,6 +78,8 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         $tmp = __DIR__ . '/' . uniqid();
 
         touch($tmp, time() + 1);
+        touch(dirname($tmp), time() + 1);
+
         $this->assertNotEquals($expected, $last = $function(__DIR__));
 
         unlink($tmp);
