@@ -1,0 +1,22 @@
+{
+    "name": "crodas/memorandum",
+    "description": "A magic memoization function on steroids",
+    "authors": [
+        {
+            "name": "Cesar Rodas",
+            "email": "crodas@php.net"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Memorandum\\": "src/Memorandum"
+        },
+        "files": [
+            "src/Memorandum.php"
+        ]
+    },
+    "require": {
+        "php": ">=7.0"
+    }
+}
