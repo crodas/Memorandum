@@ -58,7 +58,7 @@ class File extends Base
 
     protected function getCachePath(string $key): string
     {
-        return $this->directory . '/' . $key . 'php';
+        return $this->directory . '/' . $key . '.php';
     }
 
     public function get(string $key): string

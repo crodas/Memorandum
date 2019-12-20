@@ -1,24 +1,5 @@
 <?php
 
-
-function expensive() {
-    return random_int(1, 10000);
-}
-
-class Klass
-{
-    public static function expensive()
-    {
-        return random_int(1, 10000);
-    }
-
-    public function __invoke()
-    {
-        return random_int(1, 10000);
-    }
-}
-
-
 class ObservantTest extends PHPUnit\Framework\TestCase
 {
     public static function getCallback()
@@ -92,13 +73,11 @@ class ObservantTest extends PHPUnit\Framework\TestCase
 
         $expected = $function(__DIR__);
         $this->assertEquals($expected, $function(__DIR__));
-        sleep(1);
         $this->assertEquals($expected, $function(__DIR__));
 
         $tmp = __DIR__ . '/' . uniqid();
 
-        sleep(1);
-        touch($tmp);
+        touch($tmp, time() + 1);
         $this->assertNotEquals($expected, $last = $function(__DIR__));
 
         unlink($tmp);
@@ -116,16 +95,29 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         $x->getFiles();
     }
 
-    public function testWatchCustomFiles()
+    public static function getCallbackBindingCustomFile()
     {
         $file = __DIR__ . '/fixture/lock';
 
-        $function = observant(function() use ($file) {
-            touch($file);
+        $function = function() use ($file) {
             $this->watchFile(__DIR__  . '/fixture');
 
             return random_int(1, 0xfffffff);
-        });
+        };
+
+        return [
+            [observant($function, new \Observant\Cache\File(__DIR__ . '/tmp/')), $file, time() + 10],
+            [observant($function, new \Observant\Cache\File(__DIR__ . '/tmp/')), $file, time() + 20],
+        ];
+    }
+
+    /**
+     * @dataProvider getCallbackBindingCustomFile
+     */
+    public function testWatchCustomFiles($function, $file, $time)
+    {
+        touch($file, $time);
+        touch(dirname($file), $time);
 
         $first = $function();
 
@@ -134,9 +126,35 @@ class ObservantTest extends PHPUnit\Framework\TestCase
         }
 
         unlink($file);
+        $second = $function();
+
+        $this->assertNotEquals($second, $first);
 
         for ($i=0; $i < 100; ++$i) {
-            $this->assertNotEquals($first, $function());
+            $this->assertEquals($second, $function());
         }
+    }
+
+    public function testFunctionSameInstance()
+    {
+        $f = function() {};
+
+        $this->assertEquals(
+            spl_object_id(observant($f)),
+            spl_object_id(observant($f))
+        );
+    }
+
+    public function testFunctionDifferentInstanceWithCustomCache()
+    {
+        $f = function() {};
+
+        $c1 = new \Observant\Cache\File(__DIR__ . '/tmp/xxx');
+        $c2 = new \Observant\Cache\File(__DIR__ . '/tmp/xxx');
+
+        $this->assertNotEquals(
+            spl_object_id(observant($f, $c1)),
+            spl_object_id(observant($f, $c2))
+        );
     }
 }

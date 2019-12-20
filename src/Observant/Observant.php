@@ -79,13 +79,10 @@ class Observant
     {
         $this->function = $function;
         $this->name     = $this->parseFunctionName($function);
-
-        if ($cache) {
-            $this->cache = $cache;
-        }
+        $this->cache    = $cache;
 
         if (! self::$globalCache) {
-            self::setCache(new Memory());
+            self::setGlobalCache(new Memory());
         }
     }
 
@@ -94,7 +91,7 @@ class Observant
      *
      * @param Base $cache
      */
-    public static function setCache(Base $cache)
+    public static function setGlobalCache(Base $cache)
     {
         self::$globalCache = $cache;
     }

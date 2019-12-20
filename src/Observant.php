@@ -36,14 +36,15 @@
 */
 use Observant\Observant;
 
-function observant(callable $function): callable
+function observant(callable $function, \Observant\Cache\Base $cache = null): callable
 {
     static $instances = [];
 
     $id = is_object($function) ? spl_object_hash($function) : serialize($function);
+    $id .= ':' . ($cache ? spl_object_hash($cache) : 'default');
 
     if (!isset($instances[$id])) {
-        $instances[$id] = new Observant($function);
+        $instances[$id] = new Observant($function, $cache);
     }
 
     return $instances[$id];
