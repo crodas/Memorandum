@@ -39,13 +39,13 @@ use Memorandum\Memorandum;
 if (!is_callable('memo')) {
     function memo(callable $function, \Memorandum\Cache\Base $cache = null): Memorandum
     {
-        return Memorandum::init($function, $cache);
+        return Memorandum::wrap($function, $cache);
     }
 }
 
 if (!is_callable('memorandum')) {
     function memorandum(callable $function, \Memorandum\Cache\Base $cache = null): Memorandum
     {
-        return Memorandum::init($function, $cache);
+        return Memorandum::wrap($function, $cache);
     }
 }

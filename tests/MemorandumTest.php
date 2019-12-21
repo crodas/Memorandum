@@ -1,5 +1,7 @@
 <?php
 
+use Memorandum\Memorandum;
+
 class MemorandumTest extends PHPUnit\Framework\TestCase
 {
     public static function getCallback()
@@ -91,10 +93,29 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
     /**
      * @expectedException RuntimeException
      */
-    public function testInvalidCallsToGetFiles()
+    public function testInvalidCallsToGetFilesCall()
     {
-        $x = \Memorandum\Memorandum::init(function() {});
+        $x = Memorandum::wrap(function() {});
         $x->getFiles();
+    }
+
+    /**
+     * @expectedException RuntimeException
+     */
+    public function testInvalidCurrentCall()
+    {
+        Memorandum::current();
+    }
+
+    public function testCurrentCall()
+    {
+        $self = $this;
+        memorandum(function() use($self) {
+            memo(function() use ($self) {
+                $self->assertEquals($this, Memorandum::current());
+            })();
+            $self->assertEquals($this, Memorandum::current());
+        })();
     }
 
     public static function getCallbackBindingCustomFile()
