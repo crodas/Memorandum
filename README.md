@@ -4,10 +4,11 @@ A magic [memoization](https://en.wikipedia.org/wiki/Memoization) function on ste
 
 ## Motivation
 
-[Memoization](https://en.wikipedia.org/wiki/Memoization) function are useful to avoid doing repetitive tasks over and over.
+[Memoization](https://en.wikipedia.org/wiki/Memoization) stores the results of expensive function calls and
+returns the cached result when the same inputs occur again.
 
-This library stores the output of a function. If any of the function's argument are files or folders, the output will be deemed
-as valid until any of those files or folders are either modified or removed.
+This library stores the result of a function. If any of the function's argument are files or folders, the result will
+be deemed as valid until any of those files or folders are either modified or removed.
 
 Any function which involves I/O is destined to be slow, that's why Memorandum speeds up things by processing things only when
 necessary.

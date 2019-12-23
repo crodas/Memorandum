@@ -36,8 +36,10 @@
 */
 namespace Memorandum;
 
-use Memorandum\Cache\Base;
-use Memorandum\Cache\Memory;
+use Memorandum\Storage\APC;
+use Memorandum\Storage\File;
+use Memorandum\Storage\Storage;
+use Memorandum\Storage\Memory;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -61,39 +63,63 @@ class Memorandum
     protected $name;
 
     /**
-     * @var Base
+     * @var Storage
      */
-    protected static $globalCache;
+    protected static $globalStorage;
 
     /**
-     * @var Base
+     * @var Storage
      */
     protected $cache;
 
     /**
      * @var array
      */
+    private static $instances = [];
+
+    /**
+     * @var array
+     */
     protected $files = [];
 
-    private function __construct(callable $function, Base $cache = null)
+    private function __construct(string $name, callable $function, Storage $cache = null)
     {
         $this->function = $function;
-        $this->name     = $this->parseFunctionName($function);
         $this->cache    = $cache;
+        $this->name     = $name;
 
-        if (! self::$globalCache) {
-            self::setGlobalCache(new Memory());
+        if ($function instanceof Closure) {
+            try {
+                // Attempt to bind the closure's this to this Memorandum object.
+                $this->function = $function->bindTo($this);
+            } catch(Throwable $e) {
+            }
+        }
+
+
+        if (! self::$globalStorage) {
+            self::setGlobalStorage(APC::isEnabled() ? new APC() : new File());
         }
     }
 
     /**
-     * Sets the cache storage implementation.
+     * Sets the global cache storage object.
      *
-     * @param Base $cache
+     * @param Storage $cache
      */
-    public static function setGlobalCache(Base $cache)
+    public static function setGlobalStorage(Storage $cache)
     {
-        self::$globalCache = $cache;
+        self::$globalStorage = $cache;
+    }
+
+    /**
+     * Returns the global cache storage object.
+     *
+     * @return Storage
+     */
+    public static function getGlobalStorage()
+    {
+        return self::$globalStorage;
     }
 
     /**
@@ -106,15 +132,9 @@ class Memorandum
      * @return string
      * @throws \ReflectionException
      */
-    protected function parseFunctionName(callable $function): string
+    protected static function parseFunctionName(callable $function): string
     {
         if ($function instanceof Closure) {
-            try {
-                // Attempt to bind the closure's this to this Memorandum object.
-                $this->function = $function->bindTo($this);
-            } catch(Throwable $e) {
-            }
-
             $reflection = new ReflectionFunction($function);
 
             return sha1(
@@ -256,6 +276,26 @@ class Memorandum
     }
 
     /**
+     * Returns the current Memorandum instance. This function will throw an exception if it is called
+     * outside of __invoke().
+     *
+     * The idea is to provide the current object to non closures functions, same way it is available as $this
+     * in closures.
+     *
+     * @return Memorandum
+     *
+     * @throws RuntimeException
+     */
+    public static function current(): Memorandum
+    {
+        if (empty(self::$instances)) {
+            throw new RuntimeException('Invalid call to instance()');
+        }
+
+        return end(self::$instances);
+    }
+
+    /**
      * Returns the wrapped function name.
      *
      * @return string
@@ -273,7 +313,7 @@ class Memorandum
      */
     public function __invoke(... $args)
     {
-        $storage  = $this->cache ?: self::$globalCache;
+        $storage  = $this->cache ?: self::$globalStorage;
         $cacheKey = $storage->key($this, $args);
 
         if ($return = $storage->get($cacheKey)) {
@@ -283,9 +323,13 @@ class Memorandum
         $function = $this->function;
         $files    = $this->getFilesFromArgs($args);
 
-        $this->files[] = $files;
+        $this->files[]     = $files;
+        self::$instances[] = $this;
+
         $return  = $function(...$args);
+
         $files = array_pop($this->files);
+        array_pop(self::$instances);
 
         $storage->persist($cacheKey, $files, serialize($return));
 
@@ -299,18 +343,18 @@ class Memorandum
      * The instances are unique per function and cache layer.
      *
      * @param callable $function
-     * @param Base|null $cache
+     * @param Storage|null $cache
      * @return Memorandum
      */
-    public static function init(Callable $function, Base $cache = null): Memorandum
+    public static function wrap(Callable $function, Storage $cache = null): Memorandum
     {
         static $instances = [];
 
-        $id = is_object($function) ? spl_object_hash($function) : serialize($function);
-        $id .= ':' . ($cache ? spl_object_hash($cache) : 'default');
+        $name = self::parseFunctionName($function);
+        $id = $name . ':' . ($cache ? spl_object_hash($cache) : 'default');
 
         if (!isset($instances[$id])) {
-            $instances[$id] = new Memorandum($function, $cache);
+            $instances[$id] = new Memorandum($name, $function, $cache);
         }
 
         return $instances[$id];

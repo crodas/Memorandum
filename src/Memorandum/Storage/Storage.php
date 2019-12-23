@@ -34,12 +34,12 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Memorandum\Cache;
+namespace Memorandum\Storage;
 
 
 use Memorandum\Memorandum;
 
-abstract class Base
+abstract class Storage
 {
     /**
      * Returns a unique key based on the function name and the arguments.
@@ -91,4 +91,18 @@ abstract class Base
      * @return bool
      */
     abstract public function persist(string $key, array $files, string $content): bool;
+
+    /**
+     * Returns whether the current storage is enabled or not.
+     *
+     * @return bool
+     */
+    abstract static public function isEnabled(): bool;
+
+    /**
+     * Resets the cache.
+     *
+     * @return mixed
+     */
+    abstract public function reset();
 }
