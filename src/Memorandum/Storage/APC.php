@@ -34,18 +34,37 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-use Memorandum\Memorandum;
+namespace Memorandum\Storage;
 
-if (!is_callable('memo')) {
-    function memo(callable $function, \Memorandum\Storage\Storage $cache = null): Memorandum
+class APC extends Storage
+{
+    protected $cache = [];
+
+    public function get(string $key): string
     {
-        return Memorandum::wrap($function, $cache);
+        $cache = $this->cache[$key] ?? apcu_fetch($key);
+        if (is_array($cache) && $this->isCacheValid($cache['files'])) {
+            return $cache['content'];
+        }
+
+        return '';
     }
-}
 
-if (!is_callable('memorandum')) {
-    function memorandum(callable $function, \Memorandum\Storage\Storage $cache = null): Memorandum
+    public function persist(string $key, array $files, string $content): bool
     {
-        return Memorandum::wrap($function, $cache);
+        $this->cache[$key] = compact('files', 'content');
+        return apcu_store($key, $this->cache[$key]);
+    }
+
+    public function reset()
+    {
+        $this->cache = [];
+        apcu_clear_cache();
+    }
+
+    public static function isEnabled(): bool
+    {
+        return is_callable('apcu_fetch')
+            && ini_get(PHP_SAPI === 'cli' ? 'apc.enable_cli' : 'apc.enabled');
     }
 }

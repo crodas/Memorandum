@@ -51,6 +51,10 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
         for($i=0; $i < 1000; ++$i) {
             $this->assertEquals($expected, $function());
         }
+
+        Memorandum::getGlobalStorage()->reset();
+
+        $this->assertNotEquals($expected, $function());
     }
 
     /**
@@ -129,8 +133,8 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
         };
 
         return [
-            [memo($function, new \Memorandum\Cache\File(__DIR__ . '/tmp/')), $file, time() + 10],
-            [memo($function, new \Memorandum\Cache\File(__DIR__ . '/tmp/')), $file, time() + 20],
+            [memo($function, new \Memorandum\Storage\File(__DIR__ . '/tmp/')), $file, time() + 10],
+            [memo($function, new \Memorandum\Storage\File(__DIR__ . '/tmp/')), $file, time() + 20],
         ];
     }
 
@@ -172,8 +176,8 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
     {
         $f = function() {};
 
-        $c1 = new \Memorandum\Cache\File(__DIR__ . '/tmp/xxx');
-        $c2 = new \Memorandum\Cache\File(__DIR__ . '/tmp/xxx');
+        $c1 = new \Memorandum\Storage\File(__DIR__ . '/tmp/xxx');
+        $c2 = new \Memorandum\Storage\File(__DIR__ . '/tmp/xxx');
 
         $this->assertNotEquals(
             spl_object_hash(memo($f, $c1)),

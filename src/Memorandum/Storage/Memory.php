@@ -34,48 +34,16 @@
   | Authors: César Rodas <crodas@php.net>                                           |
   +---------------------------------------------------------------------------------+
 */
-namespace Memorandum\Cache;
+namespace Memorandum\Storage;
 
-
-use RuntimeException;
-
-class File extends Base
+class Memory extends Storage
 {
-    protected $directory;
-
-    protected $cache = [];
-
-    public function __construct($directory)
-    {
-        if (!is_dir($directory)) {
-            if (!mkdir($directory, 0777, true)) {
-                throw new RuntimeException("Cannot create a directory $directory");
-            }
-        }
-
-        $this->directory = $directory;
-    }
-
-    protected function getCachePath(string $key): string
-    {
-        return $this->directory . '/' . $key . '.php';
-    }
+    protected $data = [];
 
     public function get(string $key): string
     {
-        $file  = $this->getCachePath($key);
-        $cache = null;
-
-        if (isset($this->cache[$key])) {
-            $cache = $this->cache[$key];
-        } else if (is_file($file)) {
-            $cache = require $file;
-
-            $this->cache[$key] = $cache;
-        }
-
-        if ($cache && $this->isCacheValid($cache['files'])) {
-            return $cache['content'];
+        if (isset($this->data[$key]) && $this->isCacheValid($this->data[$key]['files'])) {
+            return $this->data[$key]['content'];
         }
 
         return '';
@@ -83,14 +51,18 @@ class File extends Base
 
     public function persist(string $key, array $files, string $content): bool
     {
-        $this->cache[$key] = compact('files', 'content');
+        $this->data[$key] = compact('files', 'content');
 
-        $code = var_export(compact('files', 'content'), true);
-        $temp = tempnam(sys_get_temp_dir(), 'memo');
-        file_put_contents($temp, "<?php return " . $code . ";");
+        return true;
+    }
 
-        rename($temp, $this->getCachePath($key));
+    public function reset()
+    {
+        $this->data = [];
+    }
 
+    public static function isEnabled(): bool
+    {
         return true;
     }
 }

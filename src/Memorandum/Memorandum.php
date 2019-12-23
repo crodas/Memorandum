@@ -36,8 +36,10 @@
 */
 namespace Memorandum;
 
-use Memorandum\Cache\Base;
-use Memorandum\Cache\Memory;
+use Memorandum\Storage\APC;
+use Memorandum\Storage\File;
+use Memorandum\Storage\Storage;
+use Memorandum\Storage\Memory;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -61,12 +63,12 @@ class Memorandum
     protected $name;
 
     /**
-     * @var Base
+     * @var Storage
      */
-    protected static $globalCache;
+    protected static $globalStorage;
 
     /**
-     * @var Base
+     * @var Storage
      */
     protected $cache;
 
@@ -80,7 +82,7 @@ class Memorandum
      */
     protected $files = [];
 
-    private function __construct(string $name, callable $function, Base $cache = null)
+    private function __construct(string $name, callable $function, Storage $cache = null)
     {
         $this->function = $function;
         $this->cache    = $cache;
@@ -95,19 +97,29 @@ class Memorandum
         }
 
 
-        if (! self::$globalCache) {
-            self::setGlobalCache(new Memory());
+        if (! self::$globalStorage) {
+            self::setGlobalStorage(APC::isEnabled() ? new APC() : new File());
         }
     }
 
     /**
-     * Sets the cache storage implementation.
+     * Sets the global cache storage object.
      *
-     * @param Base $cache
+     * @param Storage $cache
      */
-    public static function setGlobalCache(Base $cache)
+    public static function setGlobalStorage(Storage $cache)
     {
-        self::$globalCache = $cache;
+        self::$globalStorage = $cache;
+    }
+
+    /**
+     * Returns the global cache storage object.
+     *
+     * @return Storage
+     */
+    public static function getGlobalStorage()
+    {
+        return self::$globalStorage;
     }
 
     /**
@@ -301,7 +313,7 @@ class Memorandum
      */
     public function __invoke(... $args)
     {
-        $storage  = $this->cache ?: self::$globalCache;
+        $storage  = $this->cache ?: self::$globalStorage;
         $cacheKey = $storage->key($this, $args);
 
         if ($return = $storage->get($cacheKey)) {
@@ -331,10 +343,10 @@ class Memorandum
      * The instances are unique per function and cache layer.
      *
      * @param callable $function
-     * @param Base|null $cache
+     * @param Storage|null $cache
      * @return Memorandum
      */
-    public static function wrap(Callable $function, Base $cache = null): Memorandum
+    public static function wrap(Callable $function, Storage $cache = null): Memorandum
     {
         static $instances = [];
 
