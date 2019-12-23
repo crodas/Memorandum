@@ -133,8 +133,8 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
         };
 
         return [
-            [memo($function, new \Memorandum\Storage\File(__DIR__ . '/tmp/')), $file, time() + 10],
-            [memo($function, new \Memorandum\Storage\File(__DIR__ . '/tmp/')), $file, time() + 20],
+            [$function, $file, time() + 10],
+            [$function, $file, time() + 20],
         ];
     }
 
@@ -143,6 +143,7 @@ class MemorandumTest extends PHPUnit\Framework\TestCase
      */
     public function testWatchCustomFiles($function, $file, $time)
     {
+        $function = memo($function);
         touch($file, $time);
         touch(dirname($file), $time);
 
