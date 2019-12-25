@@ -8,6 +8,8 @@
         }
     ],
     "minimum-stability": "stable",
+    "license": "BSD 3-Clause",
+    "type": "library",
     "autoload": {
         "psr-4": {
             "Memorandum\\": "src/Memorandum"
